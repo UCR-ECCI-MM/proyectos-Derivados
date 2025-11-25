@@ -1,6 +1,7 @@
 from src.functions.general import min_max_normalize, safe_min, safe_max
 from src.functions.geothermometers import compute_geothermometers
-from src.heuristic import geothermal_score
+from src.heuristic import heuristic_weigths, \
+  objective_function
 from src.structures.Manifestation import Manifestation
 from src.structures.NormalizationStats import NormalizationStats
 
@@ -80,7 +81,7 @@ def main():
     print(f"    cl_n    = {n_cl:.3f}")
     print(f"    tavg_n  = {n_tavg:.3f}\n")
 
-    gs = geothermal_score(
+    gs = objective_function(
       temp=m.temp,
       cond=m.cond,
       cl=m.cl,
@@ -92,7 +93,28 @@ def main():
       weights=weights
     )
 
-    print(f"  >>> Geothermal Score Gs(i) = {gs:.4f}\n")
+  print(f"  >>> Geothermal Score Gs(i) = {gs:.4f}\n")
+
+  print("Computing heuristic values...\n")
+  beta_heuristic = 2.0
+  idw_power = 2.0
+
+  h_values = heuristic_weigths(
+    data,
+    stats,
+    weights=weights,
+    beta_heuristic=beta_heuristic,
+    idw_power=idw_power
+  )
+
+  # ---------------------------------------------------------------
+  # 5. Output results
+  # ---------------------------------------------------------------
+  print("=== Results: Heuristic H(i) per manifestation ===\n")
+  for m, h in zip(data, h_values):
+    print(f"  {m.mid} -> H(i) = {h:.6f}")
+
+  print("\n=== DONE ===\n")
 
 
 if __name__ == "__main__":
