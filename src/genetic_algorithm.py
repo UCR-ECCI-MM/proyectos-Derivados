@@ -4,7 +4,11 @@ from typing import List, Tuple, Set, Callable, Optional
 State = Set[int]
 
 def chromosome_to_state(chrom: List[int]) -> State:
-  return {i for i, bit in enumerate(chrom) if bit == 1}
+  state = {i for i, bit in enumerate(chrom) if bit == 1}
+  if not state:
+    # force 1 index
+    state = {random.randrange(len(chrom))}
+  return state
 
 def state_to_chromosome(state: State, n: int) -> List[int]:
   chrom = [0] * n
@@ -15,7 +19,9 @@ def state_to_chromosome(state: State, n: int) -> List[int]:
 def initial_population(pop_size: int, n: int) -> List[List[int]]:
   pop = []
   for _ in range(pop_size):
-    chrom = [random.randint(0, 1) for _ in range(n)]
+    chrom = [random.randint(0,1) for _ in range(n)]
+    if sum(chrom) == 0:
+      chrom[random.randrange(n)] = 1
     pop.append(chrom)
   return pop
 
