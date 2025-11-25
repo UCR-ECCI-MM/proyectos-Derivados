@@ -107,14 +107,9 @@ def main():
     idw_power=idw_power
   )
 
-  # ---------------------------------------------------------------
-  # 5. Output results
-  # ---------------------------------------------------------------
   print("=== Results: Heuristic H(i) per manifestation ===\n")
   for m, h in zip(data, h_values):
     print(f"  {m.mid} -> H(i) = {h:.6f}")
-
-  print("\n=== DONE ===\n")
 
 
 if __name__ == "__main__":
