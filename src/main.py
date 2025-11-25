@@ -1,17 +1,11 @@
 from src.functions.general import min_max_normalize, safe_min, safe_max
 from src.functions.geothermometers import compute_geothermometers
+from src.heuristic import geothermal_score
 from src.structures.Manifestation import Manifestation
 from src.structures.NormalizationStats import NormalizationStats
 
 
 def main():
-  """
-  Main driver to test mentalities:
-    - Compute geothermometers
-    - Compute global normalization stats
-    - Print normalized values
-  """
-  # Build example dataset
   data = [
     Manifestation(
       mid="Manifestacion 1", x=100.0, y=200.0,
@@ -60,32 +54,46 @@ def main():
     tavg_max=safe_max(t_avgs)
   )
 
-  # Iterate each manifestation
+  weights = (0.4, 0.3, 0.3)
+
   for m in data:
-    print(f"--- {m.mid} ---")
+    print(f"=== {m.mid} ===")
 
-    # Compute geothermometer temperatures
-    t_si, t_nak, t_nakca = compute_geothermometers(
-      m.si, m.na, m.k, m.ca
-    )
-
+    # Compute geothermometer values
+    t_si, t_nak, t_nakca = compute_geothermometers(m.si, m.na, m.k, m.ca)
     t_avg = (t_si + t_nak + t_nakca) / 3.0
 
     print(f"  T_Si      = {t_si:.2f} °C")
     print(f"  T_NaK     = {t_nak:.2f} °C")
     print(f"  T_NaKCa   = {t_nakca:.2f} °C")
-    print(f"  T_avg     = {t_avg:.2f} °C")
+    print(f"  T_avg     = {t_avg:.2f} °C\n")
 
+    # Normalization per parameter
     n_temp = min_max_normalize(m.temp, stats.temp_min, stats.temp_max)
     n_cond = min_max_normalize(m.cond, stats.cond_min, stats.cond_max)
     n_cl = min_max_normalize(m.cl, stats.cl_min, stats.cl_max)
     n_tavg = min_max_normalize(t_avg, stats.tavg_min, stats.tavg_max)
 
-    print("  Normalizados:")
+    print("  Valores normalizados:")
     print(f"    temp_n  = {n_temp:.3f}")
     print(f"    cond_n  = {n_cond:.3f}")
     print(f"    cl_n    = {n_cl:.3f}")
     print(f"    tavg_n  = {n_tavg:.3f}\n")
+
+    gs = geothermal_score(
+      temp=m.temp,
+      cond=m.cond,
+      cl=m.cl,
+      si=m.si,
+      na=m.na,
+      k=m.k,
+      ca=m.ca,
+      stats=stats,
+      weights=weights
+    )
+
+    print(f"  >>> Geothermal Score Gs(i) = {gs:.4f}\n")
+
 
 if __name__ == "__main__":
   main()
