@@ -1,50 +1,55 @@
-from src.functions.general import min_max_normalize, safe_min, safe_max
-from src.functions.geothermometers import compute_geothermometers
-from src.heuristic import heuristic_weigths, \
-  objective_function
+import csv
+import time
+from typing import List
+import statistics
+
+import matplotlib.pyplot as plt
+
+from src.heuristic import heuristic_weigths
 from src.structures.Manifestation import Manifestation
 from src.structures.NormalizationStats import NormalizationStats
 
+from src.functions.general import safe_min, safe_max, subset_energy, \
+ random_initial_subset, subset_neighbor_cap
+from src.functions.geothermometers import compute_geothermometers
 
-def main():
-  data = [
-    Manifestation(
-      mid="Manifestacion 1", x=100.0, y=200.0,
-      temp=92.0, cond=1800.0,
-      cl=650.0, si=230.0,
-      na=480.0, k=32.0, ca=12.0
-    ),
-    Manifestation(
-      mid="Manifestacion 2", x=110.0, y=210.0,
-      temp=78.0, cond=1500.0,
-      cl=450.0, si=180.0,
-      na=350.0, k=28.0, ca=18.0
-    ),
-    Manifestation(
-      mid="Manifestacion 3", x=95.0, y=205.0,
-      temp=105.0, cond=2200.0,
-      cl=900.0, si=280.0,
-      na=600.0, k=40.0, ca=25.0
-    )
-  ]
-
-  print("\n=== Test de Geotermométros Test ===\n")
+from src.simulated_annealing import simulated_annealing
+from src.genetic_algorithm import genetic_algorithm
+from src.tabu_search import tabu_search
 
 
-  temps = [m.temp for m in data]
-  conds = [m.cond for m in data]
-  cls = [m.cl for m in data]
+def load_manifestations_from_csv(path: str) -> List[Manifestation]:
+  lst = []
+  with open(path, newline='', encoding='utf-8') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+      lst.append(
+        Manifestation(
+          mid=row["id"],
+          x=float(row["coord_x"]),
+          y=float(row["coord_y"]),
+          temp=float(row["temp"]),
+          cond=float(row["cond"]),
+          cl=float(row["Cl"]),
+          ca=float(row["Ca"]),
+          si=float(row["Si"]),
+          na=float(row["Na"]),
+          k=float(row["K"]),
+        )
+      )
+  return lst
 
-  # Compute the geothermometer on each manifestation
+def compute_normalization_stats(manifestations: List[Manifestation]) -> NormalizationStats:
+  temps = [m.temp for m in manifestations]
+  conds = [m.cond for m in manifestations]
+  cls = [m.cl for m in manifestations]
+
   t_avgs = []
-  for m in data:
-    t_si, t_nak, t_nakca = compute_geothermometers(
-      m.si, m.na, m.k, m.ca
-    )
+  for m in manifestations:
+    t_si, t_nak, t_nakca = compute_geothermometers(m.si, m.na, m.k, m.ca)
     t_avgs.append((t_si + t_nak + t_nakca) / 3.0)
 
-  # Calculate the stats
-  stats = NormalizationStats(
+  return NormalizationStats(
     temp_min=safe_min(temps),
     temp_max=safe_max(temps),
     cond_min=safe_min(conds),
@@ -55,61 +60,143 @@ def main():
     tavg_max=safe_max(t_avgs)
   )
 
-  weights = (0.4, 0.3, 0.3)
 
-  for m in data:
-    print(f"=== {m.mid} ===")
+def run_benchmark_single(manifestations: List[Manifestation], method: str):
+  stats = compute_normalization_stats(manifestations)
+  h_vals = heuristic_weigths(manifestations, stats)
+  num_items = len(manifestations)
 
-    # Compute geothermometer values
-    t_si, t_nak, t_nakca = compute_geothermometers(m.si, m.na, m.k, m.ca)
-    t_avg = (t_si + t_nak + t_nakca) / 3.0
+  energy = lambda s: subset_energy(s, h_vals)
+  init_state = random_initial_subset(num_items, min_size=1)
 
-    print(f"  T_Si      = {t_si:.2f} °C")
-    print(f"  T_NaK     = {t_nak:.2f} °C")
-    print(f"  T_NaKCa   = {t_nakca:.2f} °C")
-    print(f"  T_avg     = {t_avg:.2f} °C\n")
+  start = time.time()
 
-    # Normalization per parameter
-    n_temp = min_max_normalize(m.temp, stats.temp_min, stats.temp_max)
-    n_cond = min_max_normalize(m.cond, stats.cond_min, stats.cond_max)
-    n_cl = min_max_normalize(m.cl, stats.cl_min, stats.cl_max)
-    n_tavg = min_max_normalize(t_avg, stats.tavg_min, stats.tavg_max)
-
-    print("  Valores normalizados:")
-    print(f"    temp_n  = {n_temp:.3f}")
-    print(f"    cond_n  = {n_cond:.3f}")
-    print(f"    cl_n    = {n_cl:.3f}")
-    print(f"    tavg_n  = {n_tavg:.3f}\n")
-
-    gs = objective_function(
-      temp=m.temp,
-      cond=m.cond,
-      cl=m.cl,
-      si=m.si,
-      na=m.na,
-      k=m.k,
-      ca=m.ca,
-      stats=stats,
-      weights=weights
+  if method == "SA":
+    best_state, best_energy = simulated_annealing(
+      initial_state=init_state,
+      energy_fn=energy,
+      neighbor_fn=lambda s: subset_neighbor_cap(s, num_items, 1, 5),
+      initial_temp=1.0,
+      final_temp=1e-3,
+      alpha=0.99,
+      max_steps=4000,
+      rng_seed=None
     )
 
-  print(f"  >>> Geothermal Score Gs(i) = {gs:.4f}\n")
+  elif method == "TS":
+    best_state, best_energy = tabu_search(
+      num_items=num_items,
+      h_values=h_vals,
+      energy_fn=energy,
+      tabu_tenure=10,
+      max_iterations=500,
+      min_size=1,
+      max_size=5,
+      rng_seed=None
+    )
 
-  print("Computing heuristic values...\n")
-  beta_heuristic = 2.0
-  idw_power = 2.0
+  elif method == "GA":
+    best_state, best_energy = genetic_algorithm(
+      num_items=num_items,
+      energy_fn=energy,
+      pop_size=40,
+      generations=150,
+      mutation_rate=0.05,
+      rng_seed=None
+    )
 
-  h_values = heuristic_weigths(
-    data,
-    stats,
-    weights=weights,
-    beta_heuristic=beta_heuristic,
-    idw_power=idw_power
-  )
+  else:
+    raise ValueError("Unknown method " + method)
 
-  print("=== Results: Heuristic H(i) per manifestation ===\n")
-  for m, h in zip(data, h_values):
-    print(f"  {m.mid} -> H(i) = {h:.6f}")
+  end = time.time()
+  elapsed = end - start
+
+  best_indices = sorted(list(best_state))
+
+  return elapsed, best_energy, len(best_indices), best_indices
+
+def print_run_summary(method, n, times, energies, sizes):
+  print("\n=======================================================")
+  print(f"   SUMMARY — {method} on N={n} (50 runs)")
+  print("=======================================================\n")
+  print(f"   Time:   mean={statistics.mean(times):.4f}s   std={statistics.stdev(times):.4f}")
+  print(f"   Energy: mean={statistics.mean(energies):.4f}  std={statistics.stdev(energies):.4f}")
+  print(f"   Size:   mean={statistics.mean(sizes):.2f}     std={statistics.stdev(sizes):.2f}")
+  print(f"   Best Energy:  {max(energies):.4f}")
+  print(f"   Worst Energy: {min(energies):.4f}")
+  print("-------------------------------------------------------\n")
+
+def main():
+  print("\n=== METAHEURISTIC BENCHMARKING — 50 RUNS EACH ===\n")
+
+  all_manifestations = load_manifestations_from_csv("../dataset/dataset_300.csv")
+  sizes = [100, 150, 300]
+  methods = ["SA", "TS", "GA"]
+
+  # Construccion de diccionarios
+  results_time = {m: {n: [] for n in sizes} for m in methods}
+  results_energy = {m: {n: [] for n in sizes} for m in methods}
+  results_size = {m: {n: [] for n in sizes} for m in methods}
+
+  # Test runs
+  for n in sizes:
+    subset = all_manifestations[:n]
+
+    print(f"\n==============================")
+    print(f"  DATASET SIZE N={n}")
+    print("==============================\n")
+
+    for method in methods:
+      print(f" → Running 50 runs of {method}...")
+
+      for _ in range(50):
+        elapsed, energy, size, best_indices = run_benchmark_single(subset, method)
+        results_time[method][n].append(elapsed)
+        results_energy[method][n].append(energy)
+        results_size[method][n].append(size)
+
+      # Print summary
+      print_run_summary(
+        method, n,
+        results_time[method][n],
+        results_energy[method][n],
+        results_size[method][n]
+      )
+
+  plt.figure(figsize=(14, 5))
+
+  # Media Tiempo
+  plt.subplot(1, 3, 1)
+  for method in methods:
+    means = [statistics.mean(results_time[method][n]) for n in sizes]
+    plt.plot(sizes, means, marker="o", label=method)
+  plt.title("Media de Tiempo en Ejecución")
+  plt.xlabel("Tamaño de muestra")
+  plt.ylabel("Segundos")
+  plt.legend()
+
+  # Media Energia
+  plt.subplot(1, 3, 2)
+  for method in methods:
+    means = [statistics.mean(results_energy[method][n]) for n in sizes]
+    plt.plot(sizes, means, marker="o", label=method)
+  plt.title("Media de Energía Encontrada")
+  plt.xlabel("Tamaño de muestra")
+  plt.ylabel("Energía")
+  plt.legend()
+
+  # Media Tamaño
+  plt.subplot(1, 3, 3)
+  for method in methods:
+    means = [statistics.mean(results_size[method][n]) for n in sizes]
+    plt.plot(sizes, means, marker="o", label=method)
+  plt.title("Media de Tamaño de Solución")
+  plt.xlabel("Tamaño de muestra")
+  plt.ylabel("Tamaño S.")
+  plt.legend()
+
+  plt.tight_layout()
+  plt.show()
 
 
 if __name__ == "__main__":
