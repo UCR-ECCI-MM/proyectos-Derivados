@@ -1,8 +1,6 @@
 import math
 import random
-from typing import Sequence, Optional, Set
-
-from src.structures import Manifestation
+from typing import Sequence, Optional, Set, Callable
 
 def min_max_normalize(value: float, vmin: float, vmax: float) -> float:
   """
@@ -36,19 +34,10 @@ def safe_log10(x: float, epsilon: float = 1e-6) -> float:
 
 State = Set[int]
 
-def subset_energy(
-  state: State, h_values: Sequence[float]
-) -> float:
-  """
-
-  :param state: Set of selected manifestation indices.
-  :param h_values: Precomputed heuristic values H(i).
-  :return: Energy of the subset. Empty subset gets negative infinity.
-  """
+def subset_energy(state: Set[int], h_values: Sequence[float]) -> float:
   if not state:
     return float("-inf")
-  s = sum(h_values[i] for i in state)
-  return s / float(len(state))
+  return sum(h_values[i] for i in state) / len(state)
 
 def random_initial_subset(
   num_items: int,
@@ -71,29 +60,22 @@ def random_initial_subset(
   random.shuffle(indices)
   return set(indices[:size])
 
-def subset_neighbor(
-  state: State,
-  num_items: int,
-  min_size: int = 1,
-  max_size: Optional[int] = None
-) -> State:
+def subset_neighbor_cap(
+        state: Set[int],
+        num_items: int,
+        min_size: int,
+        max_size: int
+) -> Set[int]:
   """
-  Generate a neighbor subset by randomly adding or removing one index.
-
-  :param state: Current subset.
-  :param num_items: Total number of available items.
-  :param min_size: Minimum allowed subset size.
-  :param max_size: Maximum allowed subset size; if None, uses num_items.
-  :return: Neighbor subset.
+  Always produces a valid neighbor within constraints.
   """
-  if max_size is None:
-    max_size = num_items
 
-  new_state: State = set(state)
+  new_state = set(state)
 
   can_add = len(new_state) < max_size
   can_remove = len(new_state) > min_size
 
+  # Choose whether to add or remove
   if can_add and can_remove:
     add_mode = random.random() < 0.5
   elif can_add:
@@ -107,8 +89,8 @@ def subset_neighbor(
     available = [i for i in range(num_items) if i not in new_state]
     if available:
       new_state.add(random.choice(available))
-  else:
-    if new_state:
-      new_state.remove(random.choice(tuple(new_state)))
+    return new_state
 
-  return new_state
+  else:
+    new_state.remove(random.choice(tuple(new_state)))
+    return new_state

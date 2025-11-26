@@ -1,16 +1,8 @@
 import random
 from typing import Set, Sequence, Optional, Tuple, Callable
-from src.functions.general import subset_neighbor
+from src.functions.general import subset_neighbor_cap
 
 State = Set[int]
-
-def neighbor(state, num_items, min_size, max_size):
-  return subset_neighbor(
-    state,
-    num_items=num_items,
-    min_size=min_size,
-    max_size=max_size
-  )
 
 def tabu_search(
   num_items: int,
@@ -19,7 +11,7 @@ def tabu_search(
   tabu_tenure: int = 10,
   max_iterations: int = 500,
   min_size: int = 1,
-  max_size: Optional[int] = None,
+  max_size: Optional[int] = 5,
   rng_seed: Optional[int] = None
 ) -> Tuple[State, float]:
   """
@@ -58,7 +50,7 @@ def tabu_search(
 
     # Generate multiple neighbors and choose the best non-tabu
     for _ in range(25):  # number of neighbors to explore per iteration
-      candidate = neighbor(
+      candidate = subset_neighbor_cap(
         current_state,
         num_items=num_items,
         min_size=min_size,

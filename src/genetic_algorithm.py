@@ -1,6 +1,8 @@
 import random
 from typing import List, Tuple, Set, Callable, Optional
 
+from src.functions.general import subset_neighbor_cap
+
 State = Set[int]
 
 def chromosome_to_state(chrom: List[int]) -> State:
@@ -16,12 +18,14 @@ def state_to_chromosome(state: State, n: int) -> List[int]:
     chrom[i] = 1
   return chrom
 
-def initial_population(pop_size: int, n: int) -> List[List[int]]:
+def initial_population(pop_size: int, n: int, min_size: int, max_size: int):
   pop = []
   for _ in range(pop_size):
-    chrom = [random.randint(0,1) for _ in range(n)]
-    if sum(chrom) == 0:
-      chrom[random.randrange(n)] = 1
+    size = random.randint(min_size, max_size)
+    chrom = [0] * n
+    ones = random.sample(range(n), k=size)
+    for i in ones:
+      chrom[i] = 1
     pop.append(chrom)
   return pop
 
@@ -32,10 +36,29 @@ def crossover(a: List[int], b: List[int]) -> Tuple[List[int], List[int]]:
     b[:point] + a[point:]
   )
 
-def mutate(chrom: List[int], rate: float = 0.05):
-  for i in range(len(chrom)):
-    if random.random() < rate:
-      chrom[i] = 1 - chrom[i]
+def mutate_chromosome(
+    chrom: List[int],
+    mutation_rate: float,
+    num_items: int,
+    min_size: int,
+    max_size: int
+) -> List[int]:
+
+  # Probability of mutation
+  if random.random() > mutation_rate:
+    return chrom
+
+  state = chromosome_to_state(chrom)
+
+  # neighbor mutation
+  mutated_state = subset_neighbor_cap(
+    state,
+    num_items=num_items,
+    min_size=min_size,
+    max_size=max_size
+  )
+
+  return state_to_chromosome(mutated_state, num_items)
 
 def evaluate_population(
   population: List[List[int]],
@@ -50,6 +73,8 @@ def genetic_algorithm(
   generations: int = 200,
   crossover_rate: float = 0.7,
   mutation_rate: float = 0.05,
+  min_size: int = 1,
+  max_size: int = 5,
   rng_seed: Optional[int] = None
 ) -> Tuple[State, float]:
   """
@@ -59,8 +84,8 @@ def genetic_algorithm(
   if rng_seed is not None:
     random.seed(rng_seed)
 
-  # Initialize population
-  population = initial_population(pop_size, num_items)
+    # Init population
+  population = initial_population(pop_size, num_items, min_size, max_size)
   fitness = evaluate_population(population, energy_fn)
 
   for gen in range(generations):
@@ -71,18 +96,19 @@ def genetic_algorithm(
     new_population = []
 
     while len(new_population) < pop_size:
-      # Parents selections
       parents = random.choices(population, weights=probs, k=2)
 
-      # cross
       if random.random() < crossover_rate:
         child1, child2 = crossover(parents[0], parents[1])
       else:
         child1, child2 = parents[0][:], parents[1][:]
 
-      # Mutation
-      mutate(child1, mutation_rate)
-      mutate(child2, mutation_rate)
+      # mutation
+      child1 = mutate_chromosome(child1, mutation_rate,
+                                 num_items, min_size, max_size)
+
+      child2 = mutate_chromosome(child2, mutation_rate,
+                                 num_items, min_size, max_size)
 
       new_population.append(child1)
       new_population.append(child2)
@@ -90,7 +116,7 @@ def genetic_algorithm(
     population = new_population[:pop_size]
     fitness = evaluate_population(population, energy_fn)
 
-  # Best individual
+  # Best solution
   best_idx = max(range(len(population)), key=lambda i: fitness[i])
   best_state = chromosome_to_state(population[best_idx])
   best_energy = fitness[best_idx]
