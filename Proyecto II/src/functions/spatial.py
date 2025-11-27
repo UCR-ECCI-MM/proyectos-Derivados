@@ -1,5 +1,5 @@
 import math
-from src.structures import Manifestation
+from ..structures import Manifestation
 from typing import Sequence, Dict, List, Tuple
 
 def euclidean_distance(

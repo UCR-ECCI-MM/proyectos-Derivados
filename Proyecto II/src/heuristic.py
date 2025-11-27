@@ -1,11 +1,11 @@
 import math
 from typing import Tuple, List, Sequence
 
-from src.functions.scores import temperature_score, geochemical_score, \
+from .functions.scores import temperature_score, geochemical_score, \
   spatial_score
-from src.functions.spatial import idw_interpolation_at_point, \
+from .functions.spatial import idw_interpolation_at_point, \
     find_k_nearest_indices
-from src.structures import Manifestation, NormalizationStats
+from .structures import Manifestation, NormalizationStats
 
 def objective_function(
   temp: float,

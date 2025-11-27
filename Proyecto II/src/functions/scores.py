@@ -1,8 +1,8 @@
 from typing import Tuple
 
-from src.functions.general import min_max_normalize
-from src.functions.geothermometers import compute_geothermometers
-from src.structures import NormalizationStats
+from .general import min_max_normalize
+from .geothermometers import compute_geothermometers
+from ..structures import NormalizationStats
 
 def temperature_score(temp: float, stats: NormalizationStats) -> float:
   """

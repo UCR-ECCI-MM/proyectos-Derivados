@@ -1,5 +1,5 @@
 from typing import Tuple
-from src.functions.general import safe_log10
+from .general import safe_log10
 
 def silica_geothermometer(si: float) -> float:
   """

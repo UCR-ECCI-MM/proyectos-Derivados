@@ -5,18 +5,17 @@ import statistics
 
 import matplotlib.pyplot as plt
 
-from src.heuristic import heuristic_weigths
-from src.structures.Manifestation import Manifestation
-from src.structures.NormalizationStats import NormalizationStats
+from .heuristic import heuristic_weigths
+from .structures.Manifestation import Manifestation
+from .structures.NormalizationStats import NormalizationStats
 
-from src.functions.general import safe_min, safe_max, subset_energy, \
+from .functions.general import safe_min, safe_max, subset_energy, \
  random_initial_subset, subset_neighbor_cap
-from src.functions.geothermometers import compute_geothermometers
+from .functions.geothermometers import compute_geothermometers
 
-from src.simulated_annealing import simulated_annealing
-from src.genetic_algorithm import genetic_algorithm
-from src.tabu_search import tabu_search
-
+from .simulated_annealing import simulated_annealing
+from .genetic_algorithm import genetic_algorithm
+from .tabu_search import tabu_search
 
 def load_manifestations_from_csv(path: str) -> List[Manifestation]:
   lst = []
@@ -100,8 +99,8 @@ def run_benchmark_single(manifestations: List[Manifestation], method: str):
       num_items=num_items,
       energy_fn=energy,
       pop_size=40,
-      generations=150,
-      mutation_rate=0.05,
+      generations=100,
+      mutation_rate=0.1,
       rng_seed=None
     )
 
@@ -129,7 +128,7 @@ def print_run_summary(method, n, times, energies, sizes):
 def main():
   print("\n=== METAHEURISTIC BENCHMARKING — 50 RUNS EACH ===\n")
 
-  all_manifestations = load_manifestations_from_csv("../dataset/dataset_300.csv")
+  all_manifestations = load_manifestations_from_csv("dataset/dataset_300.csv")
   sizes = [100, 150, 300]
   methods = ["SA", "TS", "GA"]
 

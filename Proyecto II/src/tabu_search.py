@@ -1,6 +1,6 @@
 import random
 from typing import Set, Sequence, Optional, Tuple, Callable
-from src.functions.general import subset_neighbor_cap
+from .functions.general import subset_neighbor_cap
 
 State = Set[int]
 
